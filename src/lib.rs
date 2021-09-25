@@ -28,7 +28,7 @@
 //!
 //! ```rust
 //! use serde::Deserialize;
-//! use yaml_front_matter::YamlFrontMatter;
+//! use yaml_front_matter::{Document, YamlFrontMatter};
 //!
 //! const SIMPLE_MARKDOWN_YFM: &str = r#"
 //! ---
@@ -61,7 +61,7 @@
 //!     favorite_numbers: Vec<f64>,
 //! }
 //!
-//! let result = YamlFrontMatter::parse::<Metadata>(&SIMPLE_MARKDOWN_YFM).unwrap();
+//! let document: Document<Metadata> = YamlFrontMatter::parse::<Metadata>(&SIMPLE_MARKDOWN_YFM).unwrap();
 //!
 //! let Metadata {
 //!     title,
@@ -70,7 +70,7 @@
 //!     similar_posts,
 //!     date,
 //!     favorite_numbers,
-//! } = result;
+//! } = document.metadata;
 //!
 //! assert_eq!(title, "Parsing a Markdown file metadata into a struct");
 //! assert_eq!(
@@ -91,17 +91,39 @@
 //!
 use serde::de::DeserializeOwned;
 
+/// A `Document` represents the Markdown file provided as input to
+/// `YamlFrontMatter::parse` associated function.
+///
+/// The document holds two relevant fields:
+///
+/// - `metadata`: A generic type with the structure of the Markdown's
+/// front matter header.
+///
+/// - `content`: The body of the Markdown without the front matter header
+pub struct Document<T: DeserializeOwned> {
+    /// A generic type with the structure of the Markdown's
+    /// front matter header.
+    pub metadata: T,
+    /// The body of the Markdown without the front matter header
+    pub content: String,
+}
+
 /// YAML Front Matter (YFM) is an optional section of valid YAML that is
 /// placed at the top of a page and is used for maintaining metadata for the
 /// page and its contents.
 pub struct YamlFrontMatter;
 
 impl YamlFrontMatter {
-    pub fn parse<T: DeserializeOwned>(markdown: &str) -> Result<T, Box<dyn std::error::Error>> {
+    pub fn parse<T: DeserializeOwned>(
+        markdown: &str,
+    ) -> Result<Document<T>, Box<dyn std::error::Error>> {
         let yaml = YamlFrontMatter::extract(markdown)?;
-        let result = serde_yaml::from_str::<T>(yaml.0.as_str())?;
+        let metadata = serde_yaml::from_str::<T>(yaml.0.as_str())?;
 
-        Ok(result)
+        Ok(Document {
+            metadata,
+            content: yaml.1,
+        })
     }
 
     fn extract(markdown: &str) -> Result<(String, String), Box<dyn std::error::Error>> {
@@ -140,6 +162,8 @@ impl YamlFrontMatter {
 
 #[cfg(test)]
 mod test {
+    use serde::{Deserialize, __private::doc};
+
     const MARKDOWN: &'static str = r#"
 ---
 title: "Installing The Rust Programming Language on Windows"
@@ -206,6 +230,14 @@ This will give me first-class access to the popular Win32 API, which I'm using t
 After having Windows up and running, I'm also installing Rust on Windows and I'm documenting
 it for future references."#;
 
+    #[derive(Deserialize)]
+    struct Metadata {
+        title: String,
+        description: String,
+        categories: Vec<String>,
+        date: String,
+    }
+
     #[test]
     fn retrieve_markdown_front_matter() {
         let (front_matter, _) = super::YamlFrontMatter::extract(MARKDOWN).unwrap();
@@ -218,5 +250,25 @@ it for future references."#;
         let (_, content) = super::YamlFrontMatter::extract(MARKDOWN).unwrap();
 
         assert_eq!(content, CONTENT);
+    }
+
+    #[test]
+    fn parses_markdown_into_document() {
+        let document = super::YamlFrontMatter::parse::<Metadata>(MARKDOWN).unwrap();
+        let metadata = document.metadata;
+
+        assert_eq!(
+            metadata.title,
+            "Installing The Rust Programming Language on Windows"
+        );
+        assert_eq!(
+            metadata.description,
+            "A tutorial on installing the Rust Programming Language on Windows."
+        );
+        assert_eq!(
+            metadata.categories,
+            vec!["rust", "tutorial", "windows", "install"]
+        );
+        assert_eq!(metadata.date, "2021-09-13T03:48:00");
     }
 }
