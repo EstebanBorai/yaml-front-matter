@@ -99,16 +99,20 @@ pub struct YamlFrontMatter;
 impl YamlFrontMatter {
     pub fn parse<T: DeserializeOwned>(markdown: &str) -> Result<T, Box<dyn std::error::Error>> {
         let yaml = YamlFrontMatter::extract(markdown)?;
-        let result = serde_yaml::from_str::<T>(yaml.as_str())?;
+        let result = serde_yaml::from_str::<T>(yaml.0.as_str())?;
 
         Ok(result)
     }
 
-    fn extract(markdown: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let mut data = String::default();
+    fn extract(markdown: &str) -> Result<(String, String), Box<dyn std::error::Error>> {
+        let mut front_matter = String::default();
         let mut sentinel = false;
+        let mut front_matter_lines = 0;
+        let lines = markdown.lines();
 
-        for line in markdown.lines() {
+        for line in lines.clone() {
+            front_matter_lines += 1;
+
             if line.trim() == "---" {
                 if sentinel {
                     break;
@@ -119,11 +123,100 @@ impl YamlFrontMatter {
             }
 
             if sentinel {
-                data.push_str(line);
-                data.push('\n');
+                front_matter.push_str(line);
+                front_matter.push('\n');
             }
         }
 
-        Ok(data)
+        Ok((
+            front_matter,
+            lines
+                .skip(front_matter_lines)
+                .collect::<Vec<&str>>()
+                .join("\n"),
+        ))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    const MARKDOWN: &'static str = r#"
+---
+title: "Installing The Rust Programming Language on Windows"
+description: "A tutorial on installing the Rust Programming Language on Windows."
+categories: [rust, tutorial, windows, install]
+date: 2021-09-13T03:48:00
+---
+
+# Installing The Rust Programming Language on Windows
+
+## Motivation
+
+In the past days I´ve been using Unix based systems to do my software
+development work, macOS and Ubuntu are both my main operative systems nowadays.
+
+But Windows is getting closer as well, as I get more involved into systems
+programming, I'm also getting into writing Rust crates which must be supported in
+different platforms, such as macOS, Linux and Windows.
+
+Currently I'm working on a crate called [local-ip-address](https://github.com/EstebanBorai/local-ip-address).
+
+The main goal of this crate is to list system's network interfaces along
+with related data such as interface name, interface family (AFINET or AFINET6 for instance),
+IP address, subnet mask and any other relevant properties.
+
+Given that every system has a particular way to gather network interfaces
+details, I decided to install Windows in my PC as a dual-boot option along with Ubuntu.
+
+This will give me first-class access to the popular Win32 API, which I'm using through [windows-rs](https://github.com/microsoft/windows-rs) crate.
+
+After having Windows up and running, I'm also installing Rust on Windows and I'm documenting
+it for future references.
+"#;
+
+    const FRONT_MATTER: &'static str = r#"title: "Installing The Rust Programming Language on Windows"
+description: "A tutorial on installing the Rust Programming Language on Windows."
+categories: [rust, tutorial, windows, install]
+date: 2021-09-13T03:48:00
+"#;
+
+    const CONTENT: &'static str = r#"
+# Installing The Rust Programming Language on Windows
+
+## Motivation
+
+In the past days I´ve been using Unix based systems to do my software
+development work, macOS and Ubuntu are both my main operative systems nowadays.
+
+But Windows is getting closer as well, as I get more involved into systems
+programming, I'm also getting into writing Rust crates which must be supported in
+different platforms, such as macOS, Linux and Windows.
+
+Currently I'm working on a crate called [local-ip-address](https://github.com/EstebanBorai/local-ip-address).
+
+The main goal of this crate is to list system's network interfaces along
+with related data such as interface name, interface family (AFINET or AFINET6 for instance),
+IP address, subnet mask and any other relevant properties.
+
+Given that every system has a particular way to gather network interfaces
+details, I decided to install Windows in my PC as a dual-boot option along with Ubuntu.
+
+This will give me first-class access to the popular Win32 API, which I'm using through [windows-rs](https://github.com/microsoft/windows-rs) crate.
+
+After having Windows up and running, I'm also installing Rust on Windows and I'm documenting
+it for future references."#;
+
+    #[test]
+    fn retrieve_markdown_front_matter() {
+        let (front_matter, _) = super::YamlFrontMatter::extract(MARKDOWN).unwrap();
+
+        assert_eq!(front_matter, FRONT_MATTER);
+    }
+
+    #[test]
+    fn retrieve_markdown_content() {
+        let (_, content) = super::YamlFrontMatter::extract(MARKDOWN).unwrap();
+
+        assert_eq!(content, CONTENT);
     }
 }

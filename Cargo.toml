@@ -1,6 +1,6 @@
 [package]
 name = "yaml-front-matter"
-version = "0.0.1"
+version = "0.1.0-beta"
 authors = ["Esteban Borai <estebanborai@gmail.com>"]
 
 edition = "2018"
