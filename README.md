@@ -11,7 +11,7 @@
   ![Clippy](https://github.com/EstebanBorai/yaml-front-matter/workflows/clippy/badge.svg)
   ![Fmt](https://github.com/EstebanBorai/yaml-front-matter/workflows/fmt/badge.svg)
   ![Release](https://github.com/EstebanBorai/yaml-front-matter/workflows/release/badge.svg)
-  ![Tests](https://github.com/EstebanBorai/yaml-front-matter/workflows/tests/badge.svg)
+  ![Tests](https://github.com/EstebanBorai/yaml-front-matter/workflows/test/badge.svg)
 
 </div>
 
